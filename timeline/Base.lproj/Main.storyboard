@@ -24,23 +24,30 @@
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                             </view>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="lVK-9y-i0p">
-                                <rect key="frame" x="879" y="325" width="92" height="46"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="m3b-Cv-7ST">
+                                <rect key="frame" x="870" y="877" width="180" height="86"/>
+                                <inset key="contentEdgeInsets" minX="40" minY="20" maxX="40" maxY="20"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="on/off"/>
+                                <connections>
+                                    <action selector="toggleScrubbingMode:" destination="BYZ-38-t0r" eventType="primaryActionTriggered" id="Lo1-n0-Mul"/>
+                                </connections>
+                            </button>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="lVK-9y-i0p">
+                                <rect key="frame" x="914" y="811" width="92" height="46"/>
                                 <fontDescription key="fontDescription" style="UICTFontTextStyleHeadline"/>
                                 <nil key="textColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="m3b-Cv-7ST">
-                                <rect key="frame" x="849" y="877" width="192" height="86"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <inset key="contentEdgeInsets" minX="40" minY="20" maxX="40" maxY="20"/>
-                                <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="plain" title="Button"/>
-                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="wu6-TO-1qx"/>
                         <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.0" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="m3b-Cv-7ST" firstAttribute="centerX" secondItem="wu6-TO-1qx" secondAttribute="centerX" id="CVL-Za-oh3"/>
+                            <constraint firstItem="wu6-TO-1qx" firstAttribute="bottom" secondItem="m3b-Cv-7ST" secondAttribute="bottom" constant="57" id="Hkf-Nc-YiS"/>
+                            <constraint firstItem="m3b-Cv-7ST" firstAttribute="top" secondItem="lVK-9y-i0p" secondAttribute="bottom" constant="20" id="efA-ls-llA"/>
+                            <constraint firstItem="lVK-9y-i0p" firstAttribute="centerX" secondItem="m3b-Cv-7ST" secondAttribute="centerX" id="oj0-qr-4pw"/>
+                        </constraints>
                     </view>
                     <connections>
                         <outlet property="label" destination="lVK-9y-i0p" id="kt8-5J-tA0"/>

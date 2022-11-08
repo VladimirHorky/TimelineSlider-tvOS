@@ -16,11 +16,15 @@ private let defaultThumbTintColor: UIColor = .white
 private let defaultTrackColor: UIColor = .gray
 private let defaultMinimumTrackTintColor: UIColor = .blue
 private let defaultMaximumTrackTintColor: UIColor = .clear
-private let defaultFocusScaleFactor: CGFloat = 1.05
+private let defaultFocusScaleFactor: CGFloat = 2
 private let scrubbingTranslationMultiplier: Float = 0.15
 
 protocol TimelineSliderDelegate: AnyObject {
     func timelineSliderDidTryToScrubBeyondMinimumLimit(_ sender: TimelineSlider)
+}
+
+protocol ThumbnailViewDataSource: AnyObject {
+    func thumbnail(at value: Float) -> UIImage
 }
 
 /// A control used to select a single value from a continuous range of values.
@@ -29,6 +33,11 @@ public final class TimelineSlider: UIControl {
     // MARK: - Public
 
     weak var delegate: TimelineSliderDelegate?
+    weak var thumbnailProvider: ThumbnailViewDataSource? {
+        didSet {
+            updateThumbnailVisibility()
+        }
+    }
 
     /// The slider’s current value.
     public var currentProgressValue: Float {
@@ -52,8 +61,7 @@ public final class TimelineSlider: UIControl {
                 delegate?.timelineSliderDidTryToScrubBeyondMinimumLimit(self)
             }
             let nextValue = max(newValue, minimumScrubbingValue)
-            storedThumbValue = min(maximumValue, nextValue)
-            storedThumbValue = max(minimumValue, storedThumbValue)
+            storedThumbValue = min(maximumScrubbingValue, nextValue)
 
             updateThumbPosition()
         }
@@ -75,6 +83,25 @@ public final class TimelineSlider: UIControl {
 
     /// A Boolean value indicating whether changes in the slider’s value generate continuous update events.
     public var isContinuous: Bool = defaultIsContinuous
+
+
+    /// A Boolean value indicating whether thumbnail view is enabled
+    public var isThumbnailsEnabled: Bool = true {
+        didSet {
+            guard oldValue != isThumbnailsEnabled else { return }
+            thumbnailView.isHidden = isThumbnailsEnabled
+
+            updateThumbnailVisibility()
+        }
+    }
+
+    /// A Boolean value indicating whether scrubbing is enabled or not.
+    public var isScrubbingEnabled: Bool = false {
+        didSet {
+            guard oldValue != isScrubbingEnabled else { return }
+            updateThumbnailVisibility()
+        }
+    }
 
     /// The color used to tint the default minimum track images.
     public var minimumTrackTintColor: UIColor? = defaultMinimumTrackTintColor {
@@ -173,15 +200,26 @@ public final class TimelineSlider: UIControl {
         setUpView()
     }
 
-    public override func layoutSubviews() {
-        super.layoutSubviews()
-        print("layout subviews")
-    }
-
     public override func draw(_ rect: CGRect) {
         super.draw(rect)
         updateThumbPosition()
         updateCurrentMarkerPosition()
+    }
+
+    public override func didUpdateFocus(
+        in context: UIFocusUpdateContext,
+        with coordinator: UIFocusAnimationCoordinator
+    ) {
+        mode = .normal
+
+        if context.nextFocusedView == self {
+            self.addParallaxMotionEffects()
+        } else {
+            self.motionEffects = []
+        }
+        coordinator.addCoordinatedAnimations({
+            self.updateStateDependantViews()
+        }, completion: nil)
     }
 
     // MARK: - UIControlStates
@@ -205,21 +243,25 @@ public final class TimelineSlider: UIControl {
         }
     }
 
-    public override func didUpdateFocus(
-        in context: UIFocusUpdateContext,
-        with coordinator: UIFocusAnimationCoordinator
-    ) {
-        coordinator.addCoordinatedAnimations({
-            self.updateStateDependantViews()
-        }, completion: nil)
-    }
-
     // MARK: - Private
 
     private typealias ControlState = UInt
 
     private var storedCurrentValue: Float = defaultValue
     private var storedThumbValue: Float = defaultValue
+
+    /// Indicates the mode of the timeline
+    private var mode: Mode = .normal {
+        didSet {
+            guard oldValue != mode else { return }
+            switch mode {
+            case .normal:
+                self.addParallaxMotionEffects()
+            case .scrubbing:
+                self.motionEffects = []
+            }
+        }
+    }
 
     private var thumbViewImages: [ControlState: UIImage] = [:]
 
@@ -244,7 +286,15 @@ public final class TimelineSlider: UIControl {
         return view
     }()
 
+    private var thumbnailView: UIImageView = {
+        let view = UIImageView()
+        view.layer.cornerRadius = 5
+        view.backgroundColor = .black
+        return view
+    }()
+
     private var panGestureRecognizer: UIPanGestureRecognizer!
+    private var tapGestureRecognizer: UITapGestureRecognizer!
 
     private var thumbViewCenterXConstraint: NSLayoutConstraint!
     private var currentProgressMarkerCenterXConstraint: NSLayoutConstraint!
@@ -256,19 +306,23 @@ public final class TimelineSlider: UIControl {
 
     private func setUpView() {
         addSubview(trackView)
-        addSubview(maximumTrackView)
-        addSubview(minimumTrackView)
+        trackView.addSubview(maximumTrackView)
+        trackView.addSubview(minimumTrackView)
         addSubview(currentProgressMarker)
         addSubview(thumbView)
+        addSubview(thumbnailView)
 
         setUpTrackView()
         setUpMinimumTrackView()
         setUpMaximumTrackView()
         setUpCurrentProgressMarker()
         setUpThumbView()
+        setUpThumbnailView()
 
         setUpGestures()
         updateStateDependantViews()
+
+        updateThumbnailVisibility()
     }
 
     private func setUpThumbView() {
@@ -343,12 +397,30 @@ public final class TimelineSlider: UIControl {
         ])
     }
 
+    private func setUpThumbnailView() {
+        thumbnailView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            thumbnailView.widthAnchor.constraint(equalToConstant: 160),
+            thumbnailView.heightAnchor.constraint(equalToConstant: 90),
+            thumbnailView.centerXAnchor.constraint(equalTo: thumbView.centerXAnchor),
+            thumbnailView.bottomAnchor.constraint(equalTo: thumbView.topAnchor, constant: -20)
+        ])
+    }
+
     private func setUpGestures() {
         panGestureRecognizer = UIPanGestureRecognizer(
             target: self,
             action: #selector(panGestureWasTriggered(panGestureRecognizer:))
         )
+        panGestureRecognizer.delegate = self
         addGestureRecognizer(panGestureRecognizer)
+
+
+        tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapGestureTriggered))
+        tapGestureRecognizer.delegate = self
+        tapGestureRecognizer.allowedPressTypes = [NSNumber(value: UIPress.PressType.select.rawValue)]
+        addGestureRecognizer(tapGestureRecognizer)
+
     }
 
     private func updateStateDependantViews() {
@@ -356,11 +428,29 @@ public final class TimelineSlider: UIControl {
         thumbView.image = thumbViewImages[state.rawValue] ?? thumbViewImages[UIControl.State.normal.rawValue]
 
         if isFocused {
-            transform = CGAffineTransform(scaleX: focusScaleFactor, y: focusScaleFactor)
+            trackView.transform = CGAffineTransform(scaleX: 1.0, y: focusScaleFactor)
         }
         else {
-            transform = CGAffineTransform.identity
+            trackView.transform = CGAffineTransform.identity
         }
+
+        updateThumbnailVisibility()
+    }
+
+    private func addParallaxMotionEffects(tiltValue : CGFloat = 0.25, panValue: CGFloat = 5) {
+        var yTilt = UIInterpolatingMotionEffect()
+        yTilt = UIInterpolatingMotionEffect(keyPath: "layer.transform.rotation.x", type: .tiltAlongVerticalAxis)
+        yTilt.minimumRelativeValue = -tiltValue
+        yTilt.maximumRelativeValue = tiltValue
+
+        var yPan = UIInterpolatingMotionEffect()
+        yPan = UIInterpolatingMotionEffect(keyPath: "center.y", type: .tiltAlongVerticalAxis)
+        yPan.minimumRelativeValue = -panValue
+        yPan.maximumRelativeValue = panValue
+
+        let motionGroup = UIMotionEffectGroup()
+        motionGroup.motionEffects = [yTilt, yPan]
+        self.addMotionEffect( motionGroup )
     }
 
     private func isVerticalGesture(_ recognizer: UIPanGestureRecognizer) -> Bool {
@@ -369,6 +459,24 @@ public final class TimelineSlider: UIControl {
             return true
         }
         return false
+    }
+
+    private func updateThumbnailVisibility() {
+        if isScrubbingEnabled, isThumbnailsEnabled, isFocused, thumbnailProvider != nil {
+            updateThumbnailViewAlpha(to: 1.0, animated: true)
+        } else {
+            updateThumbnailViewAlpha(to: 0, animated: true)
+        }
+    }
+
+    private func updateThumbnailViewAlpha(to alpha: CGFloat, animated: Bool) {
+        if animated {
+            UIView.animate(withDuration: 0.3, delay: 0.0) { [weak self] in
+                self?.thumbnailView.alpha = alpha
+            }
+        } else {
+            thumbnailView.alpha = alpha
+        }
     }
 
     // MARK: - Actions
@@ -383,6 +491,10 @@ public final class TimelineSlider: UIControl {
         switch panGestureRecognizer.state {
         case .began:
             thumbViewCenterXConstraintConstant = Float(thumbViewCenterXConstraint.constant)
+            if mode != .scrubbing {
+                sendActions(for: .editingDidBegin)
+            }
+            mode = .scrubbing
         case .changed:
             let centerX = thumbViewCenterXConstraintConstant + translationX * scrubbingTranslationMultiplier
             let percent = centerX / Float(trackView.frame.width)
@@ -391,10 +503,42 @@ public final class TimelineSlider: UIControl {
             if isContinuous {
                 sendActions(for: .valueChanged)
             }
+            thumbnailView.image = thumbnailProvider?.thumbnail(at: thumbValue)
         case .ended, .cancelled:
             thumbViewCenterXConstraintConstant = Float(thumbViewCenterXConstraint.constant)
         default:
             break
         }
+    }
+
+    @objc
+    private func tapGestureTriggered(_ sender: UITapGestureRecognizer) {
+        setValue(thumbValue, animated: true)
+        mode = .normal
+        sendActions(for: .editingDidEnd)
+    }
+}
+
+extension TimelineSlider: UIGestureRecognizerDelegate {
+    public override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard isScrubbingEnabled else { return false }
+
+        if let pan = gestureRecognizer as? UIPanGestureRecognizer {
+            let velocity = pan.velocity(in: pan.view)
+            return abs(velocity.x) > abs(velocity.y)
+        }
+
+        if gestureRecognizer === tapGestureRecognizer {
+            return mode == .scrubbing
+        }
+
+        return true
+    }
+}
+
+extension TimelineSlider {
+    public enum Mode {
+        case normal
+        case scrubbing
     }
 }
