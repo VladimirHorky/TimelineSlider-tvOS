@@ -99,6 +99,7 @@ public final class TimelineSlider: UIControl {
     public var isScrubbingEnabled: Bool = false {
         didSet {
             guard oldValue != isScrubbingEnabled else { return }
+            updateThumbViewVisibility()
             updateThumbnailVisibility()
         }
     }
@@ -212,14 +213,17 @@ public final class TimelineSlider: UIControl {
     ) {
         mode = .normal
 
-        if context.nextFocusedView == self {
-            self.addParallaxMotionEffects()
-        } else {
-            self.motionEffects = []
-        }
         coordinator.addCoordinatedAnimations({
             self.updateStateDependantViews()
-        }, completion: nil)
+        }, completion: { [weak self] in
+            guard let self = self else { return }
+            if context.nextFocusedView == self {
+                self.addParallaxMotionEffects()
+            } else {
+                self.thumbValue = self.currentProgressValue
+                self.motionEffects = []
+            }
+        })
     }
 
     // MARK: - UIControlStates
@@ -434,6 +438,7 @@ public final class TimelineSlider: UIControl {
             trackView.transform = CGAffineTransform.identity
         }
 
+        updateThumbViewVisibility()
         updateThumbnailVisibility()
     }
 
@@ -466,6 +471,24 @@ public final class TimelineSlider: UIControl {
             updateThumbnailViewAlpha(to: 1.0, animated: true)
         } else {
             updateThumbnailViewAlpha(to: 0, animated: true)
+        }
+    }
+
+    private func updateThumbViewVisibility() {
+        if isScrubbingEnabled, isFocused {
+            updateThumbViewAlpha(to: 1.0, animated: true)
+        } else {
+            updateThumbViewAlpha(to: 0, animated: true)
+        }
+    }
+
+    private func updateThumbViewAlpha(to alpha: CGFloat, animated: Bool) {
+        if animated {
+            UIView.animate(withDuration: 0.3, delay: 0.0) { [weak self] in
+                self?.thumbView.alpha = alpha
+            }
+        } else {
+            thumbView.alpha = alpha
         }
     }
 
