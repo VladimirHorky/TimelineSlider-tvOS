@@ -226,6 +226,10 @@ public final class TimelineSlider: UIControl {
         })
     }
 
+    public override var intrinsicContentSize: CGSize {
+        return CGSize(width: UIView.noIntrinsicMetric, height: 35)
+    }
+
     // MARK: - UIControlStates
 
     public override var isEnabled: Bool {

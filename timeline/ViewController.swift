@@ -30,12 +30,15 @@ class ViewController: UIViewController {
         slider.addTarget(self, action: #selector(sliderValueChanges), for: .valueChanged)
         slider.addTarget(self, action: #selector(sliderDidBeginEditing), for: .editingDidBegin)
         slider.addTarget(self, action: #selector(sliderDidEndEditing), for: .editingDidEnd)
-        slider.minimumScrubbingValue = 0.5
-        slider.currentProgressValue = 0.55
-        slider.thumbValue = 0.6
-        slider.maximumScrubbingValue = 0.9
+        slider.minimumValue = 0
+        slider.maximumValue = 3600
+        slider.minimumScrubbingValue = 1000
+        slider.currentProgressValue = 2500
+        slider.maximumScrubbingValue = 3000
+        slider.thumbValue = 2800
         slider.delegate = self
         slider.thumbnailProvider = self
+
     }
 
     @objc
